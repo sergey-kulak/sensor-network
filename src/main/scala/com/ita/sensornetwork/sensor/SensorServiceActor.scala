@@ -4,13 +4,13 @@ import akka.actor.{Actor, ActorLogging, Props}
 import com.ita.sensornetwork.sensor.SensorServiceActor.RegisterSensor
 
 object SensorServiceActor {
-  def props = Props(new SensorServiceActor)
+  def props(sensorDao: SensorDao) = Props(new SensorServiceActor(sensorDao))
 
   case class RegisterSensor(serialNumber: String)
 
 }
 
-class SensorServiceActor extends Actor with ActorLogging {
+class SensorServiceActor(val sensorDao: SensorDao) extends Actor with ActorLogging {
   override def receive: Receive = {
     case RegisterSensor(serialNumber) =>
   }

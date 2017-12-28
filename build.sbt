@@ -10,6 +10,7 @@ libraryDependencies ++= {
   val akkaVersion = "2.5.8"
   val akkaHttpVersion = "10.0.11"
   val h2Version = "1.4.185"
+  val flywayVersion = "5.0.3"
 
   val scalatestVersion = "3.0.4"
   Seq(
@@ -17,6 +18,7 @@ libraryDependencies ++= {
 
     "com.typesafe.slick" %% "slick" % slickVersion,
     "com.h2database" % "h2" % h2Version,
+    "org.flywaydb" % "flyway-core" % flywayVersion,
 
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,

@@ -1,0 +1,1 @@
+insert into "sensor" ("serial_number") values ('123-456-c')

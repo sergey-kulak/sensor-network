@@ -1,10 +1,12 @@
 package com.ita.sensornetwork.sensor
 
+import java.time.LocalDateTime
+
 
 case class Sensor(
                    serialNumber: String,
-                   id: Long = 0L
-                   //,registrationDate: LocalDateTime
+                   registrationDate: LocalDateTime,
+                   id: Option[Long] = None
                    //,sensorParameters: Seq[SensorParameter]
                  )
 

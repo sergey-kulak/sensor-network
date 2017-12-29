@@ -1,4 +1,5 @@
+create sequence if not exists sensor_seq;
 create table if not exists "sensor" (
-    "id" BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    "serial_number" VARCHAR(100) NOT NULL
+    "id" bigint not null default sensor_seq.nextval primary key,
+    "serial_number" varchar(100) not null
 )

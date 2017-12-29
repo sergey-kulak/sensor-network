@@ -8,8 +8,7 @@ import slick.jdbc.JdbcProfile
 
 import scala.concurrent.Future
 
-class SensorDaoImpl(val dbConfig: DatabaseConfig[JdbcProfile]) extends SensorDao
-  with CustomColumnTypes {
+class SensorDaoImpl(val dbConfig: DatabaseConfig[JdbcProfile]) extends SensorDao with CustomColumnTypes {
 
   import dbConfig.profile.api._
 

@@ -13,7 +13,7 @@ trait CustomColumnTypes {
 
   import dbConfig.profile.api._
 
-  implicit val localDateTimeToTimestamp = MappedColumnType.base[LocalDateTime, Timestamp](
+  implicit def localDateTimeToTimestamp = MappedColumnType.base[LocalDateTime, Timestamp](
     ld => Timestamp.valueOf(ld),
     dt => dt.toLocalDateTime
   )

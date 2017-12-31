@@ -2,43 +2,102 @@ package com.ita.sensornetwork.sensor
 
 import java.time.LocalDateTime
 
-import com.ita.sensornetwork.SlickTestKit
+import com.ita.sensornetwork.TestEntityKit
+import com.ita.sensornetwork.common.{Page, PageRequest, Sort, SortDirection}
+import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Matchers, WordSpecLike}
 
-class SensorDaoImplSpec extends SlickTestKit("sensor-network-db") with WordSpecLike with Matchers {
+class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers with TableDrivenPropertyChecks {
 
   import scala.concurrent.ExecutionContext.Implicits.global
-
-  val sensorDao = new SensorDaoImpl(dbConfig)
 
   "SensorDaoImpl" should {
     "register a new sensor" in withRollback {
       val expectedSerialNumber = "123"
       val expectedRegDate = LocalDateTime.now()
+      val expectedParams = Set(MeasurableParameter.Location, MeasurableParameter.NoiseLevel)
 
-      val registerDto = RegisterSensor(expectedSerialNumber, expectedRegDate)
+      val registerDto = RegisterSensor(expectedSerialNumber, expectedRegDate, expectedParams)
 
       sensorDao.registerAction(registerDto)
         .map { sensor =>
-          assert(sensor.id.isDefined)
+          assert(sensor.id != 0L)
           assert(sensor.serialNumber === expectedSerialNumber)
           assert(sensor.registrationDate === expectedRegDate)
+          assert(sensor.measurableParameters === expectedParams)
         }
     }
 
     "return all sensors" in withRollback {
-      val expectedSerialNumber = "123"
-      val expectedRegDate = LocalDateTime.now()
-
-      val registerDto = RegisterSensor(expectedSerialNumber, expectedRegDate)
-      sensorDao.registerAction(registerDto)
+      registerSensor()
         .zip(sensorDao.findAllAction())
         .map { res =>
           val sensor = res._1
           val sensors = res._2
           assert(sensors.nonEmpty)
           assert(sensors.contains(sensor))
+          assert(sensor.measurableParameters.nonEmpty)
         }
     }
+
+    "save sensor data" in withRollback {
+      registerSensor().flatMap { sensor =>
+        val expectedValue: Double = 10.5
+        val expectedParam = sensor.measurableParameters.head
+        val sensorData = SensorData(sensor.id, expectedParam, expectedValue)
+        sensorDao.saveSensorDataAction(sensorData).map { sensorData =>
+          assert(sensorData.id != 0L)
+          assert(sensorData.sensorId === sensor.id)
+          assert(sensorData.measurableParameter === expectedParam)
+          sensorData.value should equal(expectedValue)
+        }
+      }
+    }
+
+    val sensorDataFilters = Seq(
+      (_: Sensor, request: PageRequest) =>
+        SensorDataFilter(request.copy(sort = Sort(PageRequest.IdField, SortDirection.Desc))),
+
+      (s: Sensor, request: PageRequest) =>
+        SensorDataFilter(request.copy(sort = Sort(SensorDataField.Time, SortDirection.Desc)), None, Some(s.serialNumber)),
+
+      (s: Sensor, request: PageRequest) =>
+        SensorDataFilter(request.copy(sort = Sort(SensorField.SerialNumber, SortDirection.Desc)),
+          Some(s.id), Some(s.serialNumber))
+    )
+
+    sensorDataFilters.zipWithIndex.foreach { case (filterBuilder, i) =>
+      s"find sensor data with paging with filter #${i + 1}" in withRollback {
+        val pageRequest = PageRequest(0, 10)
+        for {
+          sensor <- registerSensor()
+          otherSensor <- registerSensor()
+          sensorData <- addSensorData(sensor)
+          _ <- addSensorData(otherSensor)
+          page <- sensorDao.findSensorDataAction(filterBuilder(sensor, pageRequest))
+        } yield assertFoundSensorData(sensor, sensorData, page, filterBuilder(sensor, pageRequest))
+      }
+    }
+
+    def assertFoundSensorData(sensor: Sensor, sensorData: SensorData,
+                              page: Page[FullSensorData], filter: SensorDataFilter) = {
+      val pageRequest = filter.pageRequest
+      if (filter.sensorId.isEmpty && filter.sensorSerialNumber.isEmpty) {
+        assert(page.totalItems > 0)
+      } else {
+        assert(page.totalItems === 1)
+      }
+      val expectedPageCount = (page.totalItems.toFloat / pageRequest.length).ceil.toInt
+      assert(page.totalPages === expectedPageCount)
+      assert(pageRequest.pageNumber === page.pageNumber)
+
+      val content = page.content
+      val foundSensorData = content.find(_.id == sensorData.id)
+      assert(foundSensorData.isDefined)
+      assert(foundSensorData.get.sensor.id === sensor.id)
+      assert(foundSensorData.get.sensor.serialNumber === sensor.serialNumber)
+
+    }
+
   }
 }

@@ -11,6 +11,7 @@ libraryDependencies ++= {
   val akkaHttpVersion = "10.0.11"
   val h2Version = "1.4.185"
   val flywayVersion = "5.0.3"
+  val commonsLangVersion = "3.7"
 
   val scalatestVersion = "3.0.4"
   Seq(
@@ -23,6 +24,7 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
     "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
+    "org.apache.commons" % "commons-lang3" % commonsLangVersion,
 
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "test",
     "com.typesafe.akka" %% "akka-testkit" % akkaVersion % "test",

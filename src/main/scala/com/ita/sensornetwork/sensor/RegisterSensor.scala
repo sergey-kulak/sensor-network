@@ -4,4 +4,5 @@ import java.time.LocalDateTime
 
 case class RegisterSensor(
                            serialNumber: String,
-                           registrationDate: LocalDateTime = LocalDateTime.now())
+                           registrationDate: LocalDateTime = LocalDateTime.now(),
+                           measurableParameters: Set[MeasurableParameter] = Set.empty)

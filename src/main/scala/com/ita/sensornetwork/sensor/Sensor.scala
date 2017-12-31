@@ -6,7 +6,10 @@ import java.time.LocalDateTime
 case class Sensor(
                    serialNumber: String,
                    registrationDate: LocalDateTime,
-                   id: Option[Long] = None
-                   //,sensorParameters: Seq[SensorParameter]
-                 )
+                   measurableParameters: Set[MeasurableParameter] = Set.empty,
+                   id: Long = 0L)
+
+object SensorField {
+  val SerialNumber = "serialNumber"
+}
 

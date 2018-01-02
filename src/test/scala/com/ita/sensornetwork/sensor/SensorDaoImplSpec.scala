@@ -1,6 +1,6 @@
 package com.ita.sensornetwork.sensor
 
-import java.time.LocalDateTime
+import java.time.{LocalDate, LocalDateTime, LocalTime}
 
 import com.ita.sensornetwork.TestEntityKit
 import com.ita.sensornetwork.common.{Page, PageRequest, Sort, SortDirection}
@@ -96,8 +96,41 @@ class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers wi
       assert(foundSensorData.isDefined)
       assert(foundSensorData.get.sensor.id === sensor.id)
       assert(foundSensorData.get.sensor.serialNumber === sensor.serialNumber)
-
     }
 
+  }
+
+  "findSensorMaxStatistics should find sensor data with max" in withRollback {
+    val filter = SensorMaxStatisticsFilter(Some(LocalDate.now().atStartOfDay()),
+      Some(LocalDate.now().atTime(LocalTime.MAX)))
+    for {
+      noDataSensor <- registerSensor()
+
+      wrongDateSensor <- registerSensor()
+      _ <- addSensorData(wrongDateSensor, time = LocalDateTime.now().minusMonths(1))
+      _ <- addSensorData(wrongDateSensor, time = LocalDateTime.now().plusMonths(1))
+
+      sensor <- registerSensor()
+      sensorData <- addSensorData(sensor)
+      biggerSensorData <- addSensorData(sensor, sensorData.value + 1)
+
+      stat <- sensorDao.findSensorMaxStatisticsAction(filter)
+    } yield {
+      assert(stat.nonEmpty)
+      val statMap = stat.map(i => (i._1.id, i._2)).toMap
+      assert(statMap.get(wrongDateSensor.id).isDefined)
+      assert(statMap.get(wrongDateSensor.id).flatten.isEmpty)
+
+      assert(statMap.get(noDataSensor.id).isDefined)
+      assert(statMap.get(noDataSensor.id).flatten.isEmpty)
+
+      val foundMaxData = statMap.get(sensor.id)
+      assert(foundMaxData.isDefined)
+      foundMaxData.flatten.map(md => {
+        assert(md.id === biggerSensorData.id)
+      })
+
+      //      assert(stat.exists(_.id == biggerSensorData.id))
+    }
   }
 }

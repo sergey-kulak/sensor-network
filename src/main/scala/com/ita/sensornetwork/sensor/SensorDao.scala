@@ -1,6 +1,6 @@
 package com.ita.sensornetwork.sensor
 
-import com.ita.sensornetwork.common.{Page, PageRequest}
+import com.ita.sensornetwork.common.Page
 
 import scala.concurrent.Future
 
@@ -12,4 +12,6 @@ trait SensorDao {
   def saveSensorData(sensorData: SensorData): Future[SensorData]
 
   def findSensorData(filter: SensorDataFilter): Future[Page[FullSensorData]]
+
+  def findSensorMaxStatistics(filter: SensorMaxStatisticsFilter): Future[Seq[(Sensor, Option[SensorData])]]
 }

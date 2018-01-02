@@ -13,4 +13,8 @@ object MeasurableParameter {
   object NoiseLevel extends MeasurableParameter("NS")
 
   def values = Array(Location, Temperature, Humidity, NoiseLevel)
+
+  def foundByCode(code: String): Option[MeasurableParameter] = {
+    MeasurableParameter.values.find(_.code == code)
+  }
 }

@@ -23,8 +23,9 @@ class TestEntityKit extends SlickTestKit("sensor-network-db") {
     sensorDao.registerAction(registerDto)
   }
 
-  def addSensorData(sensor: Sensor): DBIO[SensorData] = {
-    val sensorData = SensorData(sensor.id, sensor.measurableParameters.head, Random.nextDouble())
+  def addSensorData(sensor: Sensor, value: Double = Random.nextDouble(),
+                    time: LocalDateTime = LocalDateTime.now()): DBIO[SensorData] = {
+    val sensorData = SensorData(sensor.id, sensor.measurableParameters.head, value, time)
     sensorDao.saveSensorDataAction(sensorData)
   }
 }

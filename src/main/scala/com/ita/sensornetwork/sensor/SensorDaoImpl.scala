@@ -4,12 +4,13 @@ import java.time.LocalDateTime
 
 import com.ita.sensornetwork.common._
 import slick.basic.DatabaseConfig
-import slick.jdbc.JdbcProfile
+import slick.jdbc.{GetResult, JdbcProfile}
 import slick.lifted.ColumnOrdered
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class SensorDaoImpl(val dbConfig: DatabaseConfig[JdbcProfile])(implicit executor: ExecutionContext) extends SensorDao with CustomColumnTypes {
+class SensorDaoImpl(val dbConfig: DatabaseConfig[JdbcProfile])(implicit executor: ExecutionContext)
+  extends SensorDao with CustomColumnTypes {
 
   import dbConfig.profile.api._
 
@@ -23,6 +24,13 @@ class SensorDaoImpl(val dbConfig: DatabaseConfig[JdbcProfile])(implicit executor
   val insertSensorDataQuery = sensorDataItems returning sensorDataItems.map(_.id) into {
     (sensorData, id) => sensorData.copy(id = id)
   }
+
+  implicit def measurableParameterToString = MappedColumnType.base[MeasurableParameter, String](
+    mp => mp.code,
+    cd => MeasurableParameter.foundByCode(cd).get
+  )
+
+  implicit val GetMeasurableParameter = GetResult(r => MeasurableParameter.foundByCode(r.nextString).get)
 
   def register(registerSensor: RegisterSensor): Future[Sensor] = {
     db.run(registerAction(registerSensor))
@@ -102,6 +110,30 @@ class SensorDaoImpl(val dbConfig: DatabaseConfig[JdbcProfile])(implicit executor
     }
   }
 
+  override def findSensorMaxStatistics(filter: SensorMaxStatisticsFilter): Future[Seq[(Sensor, Option[SensorData])]] = {
+    db.run(findSensorMaxStatisticsAction(filter))
+  }
+
+  def findSensorMaxStatisticsAction(filter: SensorMaxStatisticsFilter): DBIO[Seq[(Sensor, Option[SensorData])]] = {
+    val maxData = sensorDataItems
+      .filter(buildFilter(_, filter))
+      .groupBy(sd => (sd.sensorId, sd.measurableParameter))
+      .map { case ((sId, mp), items) => (sId, mp) -> items.map(_.value).max }
+
+    sensorDataItems.join(maxData)
+      .on { case (sd, (mdId, mdValue)) => sd.sensorId === mdId._1 && sd.measurableParameter === mdId._2 &&
+        sd.value === mdValue
+      }
+      .joinRight(sensors).on { case ((sd, _), s) => sd.sensorId === s.id }
+      .map { case (md, s) => (s, md.map(_._1)) }.result
+  }
+
+  private def buildFilter(sd: SensorDataTable, filter: SensorMaxStatisticsFilter): Rep[Boolean] = {
+    Seq(filter.from.map(sd.time >= _),
+      filter.to.map(sd.time <= _)
+    ).flatten.fold(true.bind)(_ && _)
+  }
+
   final class SensorTable(tag: Tag) extends Table[Sensor](tag, "sensor") {
     def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
 
@@ -117,11 +149,6 @@ class SensorDaoImpl(val dbConfig: DatabaseConfig[JdbcProfile])(implicit executor
   }
 
   private def sensorToRow(sensor: Sensor) = Option((sensor.serialNumber, sensor.registrationDate, sensor.id))
-
-  implicit def measurableParameterToString = MappedColumnType.base[MeasurableParameter, String](
-    mp => mp.code,
-    cd => MeasurableParameter.values.find(_.code == cd).get
-  )
 
   final class SensorMeasurableParameterTable(tag: Tag) extends Table[(Long, MeasurableParameter)](tag, "sensor_measurable_parameter") {
     def sensorId = column[Long]("sensor_id")

@@ -128,8 +128,6 @@ class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers wi
       foundMaxData.flatten.map(md => {
         assert(md.id === biggerSensorData.id)
       })
-
-      //      assert(stat.exists(_.id == biggerSensorData.id))
     }
   }
 }

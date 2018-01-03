@@ -2,13 +2,13 @@ package com.ita.sensornetwork.sensor
 
 import java.time.LocalDateTime
 
-import com.ita.sensornetwork.common.PageRequest
+import com.ita.sensornetwork.common.{Entity, PageRequest}
 
 case class SensorData(sensorId: Long,
                       measurableParameter: MeasurableParameter,
                       value: Double,
                       time: LocalDateTime = LocalDateTime.now(),
-                      id: Long = 0L)
+                      id: Long = 0L) extends Entity[Long]
 
 object SensorDataField {
   val Time = "time"

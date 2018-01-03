@@ -3,13 +3,8 @@ package com.ita.sensornetwork.common
 import java.sql.Timestamp
 import java.time.LocalDateTime
 
-import slick.basic.DatabaseConfig
-import slick.jdbc.JdbcProfile
-
 trait CustomColumnTypes {
-  this: {
-    val dbConfig: DatabaseConfig[JdbcProfile]
-  } =>
+  self: DbConfigAware =>
 
   import dbConfig.profile.api._
 

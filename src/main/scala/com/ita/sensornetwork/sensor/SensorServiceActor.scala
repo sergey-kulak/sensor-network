@@ -1,6 +1,7 @@
 package com.ita.sensornetwork.sensor
 
 import akka.actor.{Actor, ActorLogging, Props}
+import com.ita.sensornetwork.sensor.dao.SensorDao
 
 object SensorServiceActor {
   def props(sensorDao: SensorDao) = Props(new SensorServiceActor(sensorDao))

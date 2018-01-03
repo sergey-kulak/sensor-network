@@ -3,6 +3,7 @@ package com.ita.sensornetwork
 import java.time.LocalDateTime
 
 import com.ita.sensornetwork.sensor._
+import com.ita.sensornetwork.sensor.dao.impl.SensorDaoImpl
 
 import scala.util.Random
 

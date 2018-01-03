@@ -1,36 +1,20 @@
-package com.ita.sensornetwork.sensor
-
-import java.time.LocalDateTime
+package com.ita.sensornetwork.sensor.dao.impl
 
 import com.ita.sensornetwork.common._
+import com.ita.sensornetwork.sensor._
+import com.ita.sensornetwork.sensor.dao.SensorDao
 import slick.basic.DatabaseConfig
-import slick.jdbc.{GetResult, JdbcProfile}
+import slick.jdbc.JdbcProfile
 import slick.lifted.ColumnOrdered
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class SensorDaoImpl(val dbConfig: DatabaseConfig[JdbcProfile])(implicit executor: ExecutionContext)
-  extends SensorDao with CustomColumnTypes {
+  extends BaseDao with SensorDao with SensorDbModel with SensorDataDbModel {
 
   import dbConfig.profile.api._
 
   val db = dbConfig.db
-  val sensors = TableQuery[SensorTable]
-  val insertSensorsQuery = sensors returning sensors.map(_.id) into { (sensor, id) => sensor.copy(id = id) }
-
-  val sensorMeasurableParameters = TableQuery[SensorMeasurableParameterTable]
-
-  val sensorDataItems = TableQuery[SensorDataTable]
-  val insertSensorDataQuery = sensorDataItems returning sensorDataItems.map(_.id) into {
-    (sensorData, id) => sensorData.copy(id = id)
-  }
-
-  implicit def measurableParameterToString = MappedColumnType.base[MeasurableParameter, String](
-    mp => mp.code,
-    cd => MeasurableParameter.foundByCode(cd).get
-  )
-
-  implicit val GetMeasurableParameter = GetResult(r => MeasurableParameter.foundByCode(r.nextString).get)
 
   def register(registerSensor: RegisterSensor): Future[Sensor] = {
     db.run(registerAction(registerSensor))
@@ -53,15 +37,14 @@ class SensorDaoImpl(val dbConfig: DatabaseConfig[JdbcProfile])(implicit executor
   }
 
   def findAllAction(): DBIO[Seq[Sensor]] = {
-    sensors.result
-      .flatMap { sensors =>
-        val ids = sensors.map(_.id)
-        sensorMeasurableParameters.filter(_.sensorId inSet ids).result
-          .map { sensorParams =>
-            val sensorParamMap = sensorParams.groupBy(_._1).mapValues(_.map(_._2).toSet)
-            sensors.map(s => s.copy(measurableParameters = sensorParamMap.getOrElse(s.id, Set.empty)))
-          }
-      }.transactionally
+    for {
+      sensors <- sensors.result
+      ids <- DBIO.successful(sensors.map(_.id))
+      sensorParams <- sensorMeasurableParameters.filter(_.sensorId inSet ids).result
+    } yield {
+      val sensorParamMap = sensorParams.groupBy(_._1).mapValues(_.map(_._2).toSet)
+      sensors.map(s => s.copy(measurableParameters = sensorParamMap.getOrElse(s.id, Set.empty)))
+    }
   }
 
   override def saveSensorData(sensorData: SensorData): Future[SensorData] = {
@@ -77,10 +60,12 @@ class SensorDaoImpl(val dbConfig: DatabaseConfig[JdbcProfile])(implicit executor
   }
 
   def findSensorDataAction(filter: SensorDataFilter): DBIO[Page[FullSensorData]] = {
+    val pageRequest = filter.pageRequest
+
     val query = sensorDataItems
       .join(sensors).on(_.sensorId === _.id)
       .filter { case (sd, s) => buildFilter(sd, s, filter) }
-    val pageRequest = filter.pageRequest
+
     for {
       count <- query.length.result
       content <- query.sortBy { case (sd, s) => buildSort(sd, s, pageRequest.sort) }
@@ -93,21 +78,17 @@ class SensorDaoImpl(val dbConfig: DatabaseConfig[JdbcProfile])(implicit executor
   }
 
   private def buildFilter(sd: SensorDataTable, s: SensorTable, filter: SensorDataFilter): Rep[Boolean] = {
-    Seq(filter.sensorId.map(sd.sensorId === _),
-      filter.sensorSerialNumber.map(s.serialNumber === _)
-    ).flatten.fold(true.bind)(_ && _)
+    joinAnd(
+      filter.sensorId.map(sd.sensorId === _),
+      filter.sensorSerialNumber.map(s.serialNumber === _))
   }
 
-  private def buildSort(sd: SensorDataTable, s: SensorTable, sort: Sort) = {
-    val sortField: ColumnOrdered[_] = sort.field match {
+  private def buildSort(sd: SensorDataTable, s: SensorTable, sort: Sort): ColumnOrdered[_] = {
+    buildSort(sort, {
       case PageRequest.IdField => sd.id
       case SensorField.SerialNumber => s.serialNumber
       case SensorDataField.Time => sd.time
-    }
-    sort.sortDirection match {
-      case SortDirection.Asc => sortField.asc
-      case SortDirection.Desc => sortField.desc
-    }
+    })
   }
 
   override def findSensorMaxStatistics(filter: SensorMaxStatisticsFilter): Future[Seq[(Sensor, Option[SensorData])]] = {
@@ -129,50 +110,11 @@ class SensorDaoImpl(val dbConfig: DatabaseConfig[JdbcProfile])(implicit executor
   }
 
   private def buildFilter(sd: SensorDataTable, filter: SensorMaxStatisticsFilter): Rep[Boolean] = {
-    Seq(filter.from.map(sd.time >= _),
-      filter.to.map(sd.time <= _)
-    ).flatten.fold(true.bind)(_ && _)
+    joinAnd(
+      filter.from.map(sd.time >= _),
+      filter.to.map(sd.time <= _))
   }
 
-  final class SensorTable(tag: Tag) extends Table[Sensor](tag, "sensor") {
-    def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
-
-    def serialNumber = column[String]("serial_number")
-
-    def registrationDate = column[LocalDateTime]("registration_date")
-
-    def * = (serialNumber, registrationDate, id) <> (rowToSensor, sensorToRow)
-  }
-
-  private def rowToSensor(row: (String, LocalDateTime, Long)): Sensor = {
-    Sensor(row._1, row._2, Set.empty, row._3)
-  }
-
-  private def sensorToRow(sensor: Sensor) = Option((sensor.serialNumber, sensor.registrationDate, sensor.id))
-
-  final class SensorMeasurableParameterTable(tag: Tag) extends Table[(Long, MeasurableParameter)](tag, "sensor_measurable_parameter") {
-    def sensorId = column[Long]("sensor_id")
-
-    def measurableParameter = column[MeasurableParameter]("measurable_parameter")
-
-    def * = (sensorId, measurableParameter)
-  }
-
-  final class SensorDataTable(tag: Tag) extends Table[SensorData](tag, "sensor_data") {
-    def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
-
-    def sensorId = column[Long]("sensor_id")
-
-    def measurableParameter = column[MeasurableParameter]("measurable_parameter")
-
-    def value = column[Double]("value")
-
-    def time = column[LocalDateTime]("time")
-
-    def * = (sensorId, measurableParameter, value, time, id).mapTo[SensorData]
-
-    def sensor = foreignKey("sensor_lf", sensorId, sensors)(_.id)
-  }
 
 }
 

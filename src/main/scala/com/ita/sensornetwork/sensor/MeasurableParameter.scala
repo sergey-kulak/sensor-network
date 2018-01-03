@@ -1,16 +1,16 @@
 package com.ita.sensornetwork.sensor
 
-class MeasurableParameter(val code: String)
+sealed abstract class MeasurableParameter(val code: String)
 
 object MeasurableParameter {
 
-  object Location extends MeasurableParameter("LOC")
+  case object Location extends MeasurableParameter("LOC")
 
-  object Temperature extends MeasurableParameter("TEMP")
+  case object Temperature extends MeasurableParameter("TEMP")
 
-  object Humidity extends MeasurableParameter("HUMD")
+  case object Humidity extends MeasurableParameter("HUMD")
 
-  object NoiseLevel extends MeasurableParameter("NS")
+  case object NoiseLevel extends MeasurableParameter("NS")
 
   def values = Array(Location, Temperature, Humidity, NoiseLevel)
 

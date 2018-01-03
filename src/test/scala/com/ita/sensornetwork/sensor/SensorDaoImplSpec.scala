@@ -15,7 +15,7 @@ class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers wi
     "register a new sensor" in withRollback {
       val expectedSerialNumber = "123"
       val expectedRegDate = LocalDateTime.now()
-      val expectedParams = Set(MeasurableParameter.Location, MeasurableParameter.NoiseLevel)
+      val expectedParams: Set[MeasurableParameter] = Set(MeasurableParameter.Location, MeasurableParameter.NoiseLevel)
 
       val registerDto = RegisterSensor(expectedSerialNumber, expectedRegDate, expectedParams)
 
@@ -29,15 +29,14 @@ class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers wi
     }
 
     "return all sensors" in withRollback {
-      registerSensor()
-        .zip(sensorDao.findAllAction())
-        .map { res =>
-          val sensor = res._1
-          val sensors = res._2
-          assert(sensors.nonEmpty)
-          assert(sensors.contains(sensor))
-          assert(sensor.measurableParameters.nonEmpty)
-        }
+      for {
+        sensor <- registerSensor()
+        sensors <- sensorDao.findAllAction()
+      } yield {
+        assert(sensors.nonEmpty)
+        assert(sensors.contains(sensor))
+        assert(sensor.measurableParameters.nonEmpty)
+      }
     }
 
     "save sensor data" in withRollback {
@@ -117,14 +116,14 @@ class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers wi
       stat <- sensorDao.findSensorMaxStatisticsAction(filter)
     } yield {
       assert(stat.nonEmpty)
-      val statMap = stat.map(i => (i._1.id, i._2)).toMap
-      assert(statMap.get(wrongDateSensor.id).isDefined)
-      assert(statMap.get(wrongDateSensor.id).flatten.isEmpty)
+      val statMap = stat.map(i => (i._1, i._2)).toMap
+      assert(statMap.get(wrongDateSensor).isDefined)
+      assert(statMap.get(wrongDateSensor).flatten.isEmpty)
 
-      assert(statMap.get(noDataSensor.id).isDefined)
-      assert(statMap.get(noDataSensor.id).flatten.isEmpty)
+      assert(statMap.get(noDataSensor).isDefined)
+      assert(statMap.get(noDataSensor).flatten.isEmpty)
 
-      val foundMaxData = statMap.get(sensor.id)
+      val foundMaxData = statMap.get(sensor)
       assert(foundMaxData.isDefined)
       foundMaxData.flatten.map(md => {
         assert(md.id === biggerSensorData.id)

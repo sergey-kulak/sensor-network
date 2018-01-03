@@ -1,6 +1,7 @@
-package com.ita.sensornetwork.sensor
+package com.ita.sensornetwork.sensor.dao
 
 import com.ita.sensornetwork.common.Page
+import com.ita.sensornetwork.sensor._
 
 import scala.concurrent.Future
 

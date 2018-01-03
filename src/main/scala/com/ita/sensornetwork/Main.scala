@@ -1,7 +1,8 @@
 package com.ita.sensornetwork
 
 import com.ita.sensornetwork.common.FlywayMigration
-import com.ita.sensornetwork.sensor.{SensorDao, SensorDaoImpl}
+import com.ita.sensornetwork.sensor.dao.SensorDao
+import com.ita.sensornetwork.sensor.dao.impl.SensorDaoImpl
 import slick.basic.DatabaseConfig
 import slick.jdbc.JdbcProfile
 

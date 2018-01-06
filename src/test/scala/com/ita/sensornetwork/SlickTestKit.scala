@@ -1,17 +1,19 @@
 package com.ita.sensornetwork
 
-import com.ita.sensornetwork.common.FlywayMigration
+import com.ita.sensornetwork.common.{DbConfigAware, ExecutionContextAware, FlywayMigration}
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.{BeforeAndAfterAll, Suite}
 import slick.basic.DatabaseConfig
 import slick.jdbc.JdbcProfile
 
-import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext}
 import scala.util.{Failure, Success, Try}
 
 
-class SlickTestKit(val path: String) extends Suite with BeforeAndAfterAll with FlywayMigration {
+class SlickTestKit(val path: String) extends Suite with BeforeAndAfterAll
+  with FlywayMigration with DbConfigAware with ExecutionContextAware {
+
   val dbConfig = DatabaseConfig.forConfig[JdbcProfile](path)
 
   import dbConfig.profile.api._
@@ -38,4 +40,5 @@ class SlickTestKit(val path: String) extends Suite with BeforeAndAfterAll with F
 
   private class TestRollBackException extends RuntimeException
 
+  override implicit def executionContext: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
 }

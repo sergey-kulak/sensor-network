@@ -13,6 +13,9 @@ case class SensorData(sensorId: Long,
 object SensorDataField {
   val Time = "time"
 }
+case class CreateSensorData(measurableParameter: MeasurableParameter,
+                      value: Double,
+                      time: LocalDateTime = LocalDateTime.now())
 
 case class FullSensorData(sensor: Sensor,
                           measurableParameter: MeasurableParameter,
@@ -20,7 +23,7 @@ case class FullSensorData(sensor: Sensor,
                           time: LocalDateTime,
                           id: Long)
 
-object FullSensorData {
+object FullSensorDataUtils {
   def of(sd: SensorData, sensor: Sensor) = FullSensorData(sensor = sensor,
     measurableParameter = sd.measurableParameter, value = sd.value,
     time = sd.time, id = sd.id

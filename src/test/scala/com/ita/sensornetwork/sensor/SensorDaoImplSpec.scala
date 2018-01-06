@@ -9,9 +9,8 @@ import org.scalatest.{Matchers, WordSpecLike}
 
 class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers with TableDrivenPropertyChecks {
 
-  import scala.concurrent.ExecutionContext.Implicits.global
-
   "SensorDaoImpl" should {
+
     "register a new sensor" in withRollback {
       val expectedSerialNumber = "123"
       val expectedRegDate = LocalDateTime.now()
@@ -26,6 +25,25 @@ class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers wi
           assert(sensor.registrationDate === expectedRegDate)
           assert(sensor.measurableParameters === expectedParams)
         }
+    }
+
+    "find by id" in withRollback {
+      for {
+        sensor <- registerSensor()
+        foundOption <- sensorDao.findByIdAction(sensor.id)
+      } yield {
+        assert(foundOption.isDefined)
+        foundOption.map { fs =>
+          assert(fs === sensor)
+          assert(fs.measurableParameters === sensor.measurableParameters)
+        }
+      }
+    }
+
+    "return none if there is no result during find by id" in withRollback {
+      sensorDao.findByIdAction(-1).map { fs =>
+        assert(fs.isEmpty)
+      }
     }
 
     "return all sensors" in withRollback {
@@ -43,8 +61,8 @@ class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers wi
       registerSensor().flatMap { sensor =>
         val expectedValue: Double = 10.5
         val expectedParam = sensor.measurableParameters.head
-        val sensorData = SensorData(sensor.id, expectedParam, expectedValue)
-        sensorDao.saveSensorDataAction(sensorData).map { sensorData =>
+        val sensorData = CreateSensorData(expectedParam, expectedValue)
+        sensorDao.saveSensorDataAction(sensor.id, sensorData).map { sensorData =>
           assert(sensorData.id != 0L)
           assert(sensorData.sensorId === sensor.id)
           assert(sensorData.measurableParameter === expectedParam)

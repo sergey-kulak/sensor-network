@@ -14,6 +14,7 @@ libraryDependencies ++= {
   val commonsLangVersion = "3.7"
 
   val scalatestVersion = "3.0.4"
+  val scalamockVersion = "4.0.0"
   Seq(
     "ch.qos.logback" % "logback-classic" % logbackVersion,
 
@@ -23,11 +24,16 @@ libraryDependencies ++= {
 
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
+    "com.typesafe.akka" %% "akka-stream" % akkaVersion,
     "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
+    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
     "org.apache.commons" % "commons-lang3" % commonsLangVersion,
 
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "test",
     "com.typesafe.akka" %% "akka-testkit" % akkaVersion % "test",
-    "org.scalatest" %% "scalatest" % scalatestVersion % "test"
+    "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "test",
+    "org.scalatest" %% "scalatest" % scalatestVersion % "test",
+    "org.scalamock" %% "scalamock" % scalamockVersion % "test"
+
   )
 }

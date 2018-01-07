@@ -3,7 +3,8 @@ package com.ita.sensornetwork.sensor.rest
 import java.time.LocalDateTime
 
 import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.headers.Location
+import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, Location}
+import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.ita.sensornetwork.common.Page
 import com.ita.sensornetwork.sensor._
@@ -16,18 +17,28 @@ import scala.concurrent.Future
 class SensorRestApiComponentSpec extends WordSpecLike with Matchers
   with ScalatestRouteTest with SensorRestApiComponent with SensorDaoComponent with MockFactory {
 
+  val Auth = Authorization(BasicHttpCredentials("user", "pass"))
+
   val sensorDaoMock = mock[SensorDao]
 
   def sensorDao = sensorDaoMock
 
-  def routes = sensorRestApi.routes
+  def routes = Route.seal {
+    sensorRestApi.routes
+  }
 
   "Sensor Rest Api" should {
+    "support basic auth and reject requests with it" in {
+      Get("/sensors") ~> routes ~> check {
+        status shouldEqual StatusCodes.Unauthorized
+      }
+    }
+
     "return all sensors" in {
       val sensors = Seq(Sensor("s1", id = 1))
       (sensorDao.findAll _).expects().returning(Future(sensors))
 
-      Get("/sensors") ~> routes ~> check {
+      Get("/sensors").withHeaders(Auth) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         responseAs[Seq[Sensor]] shouldEqual sensors
       }
@@ -37,7 +48,7 @@ class SensorRestApiComponentSpec extends WordSpecLike with Matchers
       val sensor = Sensor("s1", id = 1)
       (sensorDao.findById _).expects(sensor.id).returning(Future(Some(sensor)))
 
-      Get(s"/sensors/${sensor.id}") ~> routes ~> check {
+      Get(s"/sensors/${sensor.id}").withHeaders(Auth) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         responseAs[Sensor] shouldEqual sensor
       }
@@ -47,7 +58,7 @@ class SensorRestApiComponentSpec extends WordSpecLike with Matchers
       val id = 1
       (sensorDao.findById _).expects(id).returns(Future(None))
 
-      Get(s"/sensors/${id}") ~> routes ~> check {
+      Get(s"/sensors/${id}").withHeaders(Auth) ~> routes ~> check {
         status shouldEqual StatusCodes.NotFound
       }
     }
@@ -59,7 +70,7 @@ class SensorRestApiComponentSpec extends WordSpecLike with Matchers
       (sensorDao.register _).expects(rSensor).returns(
         Future(Sensor(rSensor.serialNumber, rSensor.registrationDate, rSensor.measurableParameters, id)))
 
-      Post("/sensors", rSensor) ~> routes ~> check {
+      Post("/sensors", rSensor).withHeaders(Auth) ~> routes ~> check {
         status shouldEqual StatusCodes.Created
         header[Location] shouldEqual Some(Location(s"/sensors/${id}"))
       }
@@ -71,7 +82,7 @@ class SensorRestApiComponentSpec extends WordSpecLike with Matchers
       val page = Page(sensorData, 0, 1, 1)
       (sensorDao.findSensorData _).expects(*).returning(Future(page))
 
-      Get(s"/sensors/${sensor.id}/data?pageNumber=0&length=10") ~> routes ~> check {
+      Get(s"/sensors/${sensor.id}/data?pageNumber=0&length=10").withHeaders(Auth) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         responseAs[Page[FullSensorData]] shouldEqual page
       }
@@ -83,7 +94,7 @@ class SensorRestApiComponentSpec extends WordSpecLike with Matchers
       val sensorData = SensorData(sensorId, MeasurableParameter.NoiseLevel, 1)
       (sensorDao.saveSensorData _).expects(sensorId, *).returning(Future(sensorData))
 
-      Post(s"/sensors/${sensorId}/data", createSensorData) ~> routes ~> check {
+      Post(s"/sensors/${sensorId}/data", createSensorData).withHeaders(Auth) ~> routes ~> check {
         status shouldEqual StatusCodes.Created
       }
     }

@@ -30,7 +30,7 @@ trait SensorRestApiComponent extends SprayJsonSupport with JsonProtocol {
       pathPrefix("sensors") {
         pathPrefix(IntNumber) { id =>
           path("data") {
-            pathEnd {
+            pathEndOrSingleSlash {
               get {
                 parameters("pageNumber".as[Int] ? 0, "length".as[Int] ? 20, "sortField".?, "direction".?) {
                   (pageNumber, length, sortFieldOpt, directionOpt) =>
@@ -49,7 +49,7 @@ trait SensorRestApiComponent extends SprayJsonSupport with JsonProtocol {
                 }
               }
             }
-          } ~ pathEnd {
+          } ~ pathEndOrSingleSlash {
             get {
               onSuccess(sensorDao.findById(id)) {
                 case Some(sensor) => complete(sensor)
@@ -57,7 +57,7 @@ trait SensorRestApiComponent extends SprayJsonSupport with JsonProtocol {
               }
             }
           }
-        } ~ pathEnd {
+        } ~ pathEndOrSingleSlash {
           get {
             onSuccess(sensorDao.findAll())(complete(_))
           } ~ post {

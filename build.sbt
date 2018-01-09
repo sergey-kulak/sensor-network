@@ -4,6 +4,8 @@ version := "0.1"
 
 scalaVersion := "2.12.4"
 
+enablePlugins(JavaAppPackaging)
+
 libraryDependencies ++= {
   val logbackVersion = "1.1.3"
   val slickVersion = "3.2.1"
@@ -37,3 +39,5 @@ libraryDependencies ++= {
 
   )
 }
+
+mainClass in Compile := Some("com.ita.sensornetwork.ServerMain")

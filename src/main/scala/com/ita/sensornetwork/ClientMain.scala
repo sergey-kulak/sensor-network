@@ -15,6 +15,11 @@ object ClientMain extends App {
   implicit val context = system.dispatcher
 
   val responseFuture: Future[HttpResponse] = Http().singleRequest(HttpRequest(uri = "http://tut.by"))
-  val result = Await.result(responseFuture, 10 seconds).entity.toStrict(3.seconds)
+  val result = Await.result(responseFuture.flatMap { response =>
+    println(s"status: ${response.status}")
+    println(s"headers: ${response.headers}")
+    response.entity.dataBytes.runFold(ByteString())(_ ++ _).map(_.utf8String)
+  }, 10 seconds)
   println(result)
+  system.terminate()
 }

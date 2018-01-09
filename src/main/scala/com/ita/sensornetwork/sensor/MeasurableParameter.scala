@@ -14,7 +14,5 @@ object MeasurableParameter {
 
   def values = Array(Location, Temperature, Humidity, NoiseLevel)
 
-  def foundByCode(code: String): Option[MeasurableParameter] = {
-    MeasurableParameter.values.find(_.code == code)
-  }
+  def foundByCode(code: String): Option[MeasurableParameter] = values.find(_.code == code)
 }

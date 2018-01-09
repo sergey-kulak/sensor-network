@@ -84,11 +84,15 @@ trait SensorDaoImplComponent extends SensorDaoComponent {
         .join(sensors).on(_.sensorId === _.id)
         .filter { case (sd, s) => buildFilter(sd, s, filter) }
 
-      for {
-        count <- query.length.result
-        content <- query.sortBy { case (sd, s) => buildSort(sd, s, pageRequest.sort) }
-          .drop(pageRequest.startIndex).take(pageRequest.length).result if count > 0
-      } yield Page(toFullSensorData(content), pageRequest.pageNumber, pageRequest.pageCount(count), count)
+      val queryWithPaging = query.sortBy { case (sd, s) => buildSort(sd, s, pageRequest.sort) }
+        .drop(pageRequest.startIndex).take(pageRequest.length)
+
+      query.length.result.flatMap { count =>
+        val contentQuery = if (count > 0) queryWithPaging.result else DBIO.successful(Seq.empty)
+        contentQuery.map { content =>
+          Page(toFullSensorData(content), pageRequest.pageNumber, pageRequest.pageCount(count), count)
+        }
+      }
     }
 
     private def toFullSensorData(items: Seq[(SensorData, Sensor)]): Seq[FullSensorData] = {
@@ -103,7 +107,7 @@ trait SensorDaoImplComponent extends SensorDaoComponent {
 
     private def buildSort(sd: SensorDataTable, s: SensorTable, sort: Sort): ColumnOrdered[_] = {
       buildSort(sort, {
-        case PageRequest.IdField => sd.id
+        case PageRequestField.IdField => sd.id
         case SensorField.SerialNumber => s.serialNumber
         case SensorDataField.Time => sd.time
       })

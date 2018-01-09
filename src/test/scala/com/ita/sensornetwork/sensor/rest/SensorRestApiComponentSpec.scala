@@ -6,7 +6,7 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, Location}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import com.ita.sensornetwork.common.Page
+import com.ita.sensornetwork.common._
 import com.ita.sensornetwork.sensor._
 import com.ita.sensornetwork.sensor.dao.SensorDaoComponent
 import org.scalamock.scalatest.MockFactory
@@ -76,13 +76,42 @@ class SensorRestApiComponentSpec extends WordSpecLike with Matchers
       }
     }
 
-    "returns sensor data" in {
+    "return sensor data" in {
       val sensor = Sensor("s1", id = 1)
+
+      val pageNumber = 1
+      val length = 10
+      val sortField = SensorDataField.Time
+      val direction = SortDirection.Desc
+      val pageRequest = PageRequest(pageNumber, length, Sort(sortField, direction))
+
+      val expectedFilter = SensorDataFilter(pageRequest, sensorId = Some(sensor.id))
       val sensorData = Seq(FullSensorData(sensor, MeasurableParameter.NoiseLevel, 1, LocalDateTime.now(), 1))
       val page = Page(sensorData, 0, 1, 1)
-      (sensorDao.findSensorData _).expects(*).returning(Future(page))
+      (sensorDao.findSensorData _).expects(expectedFilter).returning(Future(page))
 
-      Get(s"/sensors/${sensor.id}/data?pageNumber=0&length=10").withHeaders(Auth) ~> routes ~> check {
+      Get(s"/sensors/${sensor.id}/data?pageNumber=${pageNumber}&length=${length}" +
+        s"&sortField=${sortField}&direction=${direction.code}").withHeaders(Auth) ~> routes ~> check {
+        status shouldEqual StatusCodes.OK
+        responseAs[Page[FullSensorData]] shouldEqual page
+      }
+    }
+
+    "returns sensor data with default paging" in {
+      val sensorId = 1
+
+      val pageNumber = 0
+      val length = 20
+      val sortField = PageRequestField.DefaultSortField
+      val direction = SortDirection.Asc
+      val pageRequest = PageRequest(pageNumber, length, Sort(sortField, direction))
+
+      val expectedFilter = SensorDataFilter(pageRequest, sensorId = Some(sensorId))
+
+      val page = Page(Seq.empty[FullSensorData], 0, 0, 0)
+      (sensorDao.findSensorData _).expects(expectedFilter).returning(Future(page))
+
+      Get(s"/sensors/${sensorId}/data").withHeaders(Auth) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         responseAs[Page[FullSensorData]] shouldEqual page
       }
@@ -96,6 +125,20 @@ class SensorRestApiComponentSpec extends WordSpecLike with Matchers
 
       Post(s"/sensors/${sensorId}/data", createSensorData).withHeaders(Auth) ~> routes ~> check {
         status shouldEqual StatusCodes.Created
+      }
+    }
+
+    "reject record sensor data with negative humidity" in {
+      case class TestCreateSensorData(measurableParameter: MeasurableParameter,
+                                      value: Double,
+                                      time: LocalDateTime = LocalDateTime.now())
+      implicit val testCreateSensorDataFormat = jsonFormat3(TestCreateSensorData)
+
+      val sensorId = 1
+      val createSensorData = TestCreateSensorData(MeasurableParameter.Humidity, -1)
+
+      Post(s"/sensors/${sensorId}/data", createSensorData).withHeaders(Auth) ~> routes ~> check {
+        status shouldEqual StatusCodes.BadRequest
       }
     }
   }

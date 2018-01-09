@@ -6,7 +6,7 @@ import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives.{get, _}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.Credentials
-import com.ita.sensornetwork.common.{JsonProtocol, Page, PageRequest}
+import com.ita.sensornetwork.common._
 import com.ita.sensornetwork.sensor._
 import com.ita.sensornetwork.sensor.dao.SensorDaoComponent
 
@@ -19,6 +19,8 @@ trait SensorRestApiComponent extends SprayJsonSupport with JsonProtocol {
   implicit val sensorDataFormat = jsonFormat5(SensorData)
   implicit val fullSensorDataFormat = jsonFormat5(FullSensorData)
   implicit val pageFormat = jsonFormat4(Page[FullSensorData])
+  implicit val sortFormat = jsonFormat2(Sort)
+  implicit val pageRequestFormat = jsonFormat3(PageRequest)
 
   def sensorRestApi: SensorRestApi = new SensorRestApi {}
 
@@ -30,10 +32,14 @@ trait SensorRestApiComponent extends SprayJsonSupport with JsonProtocol {
           path("data") {
             pathEnd {
               get {
-                parameter("pageNumber".as[Int], "length".as[Int]) { (pageNumber, length) =>
-                  val pageRequest = PageRequest(pageNumber, length)
-                  val filter = SensorDataFilter(pageRequest, sensorId = Some(id))
-                  onSuccess(sensorDao.findSensorData(filter))(complete(_))
+                parameters("pageNumber".as[Int] ? 0, "length".as[Int] ? 20, "sortField".?, "direction".?) {
+                  (pageNumber, length, sortFieldOpt, directionOpt) =>
+                    val sortDirection = directionOpt.flatMap(SortDirection.foundByCode).getOrElse(SortDirection.Asc)
+                    val sortField = sortFieldOpt.getOrElse(PageRequestField.DefaultSortField)
+                    val pageRequest = PageRequest(pageNumber, length, Sort(sortField, sortDirection))
+
+                    val filter = SensorDataFilter(pageRequest, sensorId = Some(id))
+                    onSuccess(sensorDao.findSensorData(filter))(complete(_))
                 }
               } ~ post {
                 entity(as[CreateSensorData]) { sData =>

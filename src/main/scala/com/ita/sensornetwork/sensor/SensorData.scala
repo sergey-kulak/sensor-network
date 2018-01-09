@@ -13,9 +13,15 @@ case class SensorData(sensorId: Long,
 object SensorDataField {
   val Time = "time"
 }
+
 case class CreateSensorData(measurableParameter: MeasurableParameter,
-                      value: Double,
-                      time: LocalDateTime = LocalDateTime.now())
+                            value: Double,
+                            time: LocalDateTime = LocalDateTime.now()) {
+  measurableParameter match {
+    case MeasurableParameter.Humidity => require(value >= 0, "Humidity can't be negative")
+    case _ =>
+  }
+}
 
 case class FullSensorData(sensor: Sensor,
                           measurableParameter: MeasurableParameter,

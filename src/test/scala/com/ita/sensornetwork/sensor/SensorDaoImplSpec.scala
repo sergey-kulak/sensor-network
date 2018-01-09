@@ -3,7 +3,7 @@ package com.ita.sensornetwork.sensor
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 
 import com.ita.sensornetwork.TestEntityKit
-import com.ita.sensornetwork.common.{Page, PageRequest, Sort, SortDirection}
+import com.ita.sensornetwork.common._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Matchers, WordSpecLike}
 
@@ -73,7 +73,7 @@ class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers wi
 
     val sensorDataFilters = Seq(
       (_: Sensor, request: PageRequest) =>
-        SensorDataFilter(request.copy(sort = Sort(PageRequest.IdField, SortDirection.Desc))),
+        SensorDataFilter(request.copy(sort = Sort(PageRequestField.IdField, SortDirection.Desc))),
 
       (s: Sensor, request: PageRequest) =>
         SensorDataFilter(request.copy(sort = Sort(SensorDataField.Time, SortDirection.Desc)), None, Some(s.serialNumber)),
@@ -115,37 +115,48 @@ class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers wi
       assert(foundSensorData.get.sensor.serialNumber === sensor.serialNumber)
     }
 
-  }
+    "return empty result during finding sensor data with paging" in withRollback {
+      val pageRequest = PageRequest(0, 10)
+      for {
+        sensor <- registerSensor()
+        page <- sensorDao.findSensorDataAction(SensorDataFilter(pageRequest, sensorId = Some(sensor.id)))
+      } yield {
+        assert(page.totalItems === 0)
+        assert(page.totalPages === 0)
+        assert(page.content.isEmpty)
+      }
+    }
 
-  "findSensorMaxStatistics should find sensor data with max" in withRollback {
-    val filter = SensorMaxStatisticsFilter(Some(LocalDate.now().atStartOfDay()),
-      Some(LocalDate.now().atTime(LocalTime.MAX)))
-    for {
-      noDataSensor <- registerSensor()
+    "findSensorMaxStatistics should find sensor data with max" in withRollback {
+      val filter = SensorMaxStatisticsFilter(Some(LocalDate.now().atStartOfDay()),
+        Some(LocalDate.now().atTime(LocalTime.MAX)))
+      for {
+        noDataSensor <- registerSensor()
 
-      wrongDateSensor <- registerSensor()
-      _ <- addSensorData(wrongDateSensor, time = LocalDateTime.now().minusMonths(1))
-      _ <- addSensorData(wrongDateSensor, time = LocalDateTime.now().plusMonths(1))
+        wrongDateSensor <- registerSensor()
+        _ <- addSensorData(wrongDateSensor, time = LocalDateTime.now().minusMonths(1))
+        _ <- addSensorData(wrongDateSensor, time = LocalDateTime.now().plusMonths(1))
 
-      sensor <- registerSensor()
-      sensorData <- addSensorData(sensor)
-      biggerSensorData <- addSensorData(sensor, sensorData.value + 1)
+        sensor <- registerSensor()
+        sensorData <- addSensorData(sensor)
+        biggerSensorData <- addSensorData(sensor, sensorData.value + 1)
 
-      stat <- sensorDao.findSensorMaxStatisticsAction(filter)
-    } yield {
-      assert(stat.nonEmpty)
-      val statMap = stat.map(i => (i._1, i._2)).toMap
-      assert(statMap.get(wrongDateSensor).isDefined)
-      assert(statMap.get(wrongDateSensor).flatten.isEmpty)
+        stat <- sensorDao.findSensorMaxStatisticsAction(filter)
+      } yield {
+        assert(stat.nonEmpty)
+        val statMap = stat.map(i => (i._1, i._2)).toMap
+        assert(statMap.get(wrongDateSensor).isDefined)
+        assert(statMap.get(wrongDateSensor).flatten.isEmpty)
 
-      assert(statMap.get(noDataSensor).isDefined)
-      assert(statMap.get(noDataSensor).flatten.isEmpty)
+        assert(statMap.get(noDataSensor).isDefined)
+        assert(statMap.get(noDataSensor).flatten.isEmpty)
 
-      val foundMaxData = statMap.get(sensor)
-      assert(foundMaxData.isDefined)
-      foundMaxData.flatten.map(md => {
-        assert(md.id === biggerSensorData.id)
-      })
+        val foundMaxData = statMap.get(sensor)
+        assert(foundMaxData.isDefined)
+        foundMaxData.flatten.map(md => {
+          assert(md.id === biggerSensorData.id)
+        })
+      }
     }
   }
 }

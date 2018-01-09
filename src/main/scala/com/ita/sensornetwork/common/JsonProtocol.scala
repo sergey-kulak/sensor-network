@@ -38,4 +38,16 @@ trait JsonProtocol extends DefaultJsonProtocol {
     }
   }
 
+  implicit object SortDirectionFormat extends JsonFormat[SortDirection] {
+
+    def write(sd: SortDirection) = JsString(sd.code)
+
+    def read(json: JsValue) = json match {
+      case JsString(code) =>
+        SortDirection.foundByCode(code)
+          .fold(deserializationError(s"Expected ISO Date format, got $code"))(identity)
+      case error => deserializationError(s"Expected JsString, got $error")
+    }
+  }
+
 }

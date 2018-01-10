@@ -73,13 +73,13 @@ class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers wi
 
     val sensorDataFilters = Seq(
       (_: Sensor, request: PageRequest) =>
-        SensorDataFilter(request.copy(sort = Sort(PageRequestField.IdField, SortDirection.Desc))),
+        SensorDataFilter(request.copy(sort = Sort(PageRequest.IdField, SortDirection.Desc))),
 
       (s: Sensor, request: PageRequest) =>
-        SensorDataFilter(request.copy(sort = Sort(SensorDataField.Time, SortDirection.Desc)), None, Some(s.serialNumber)),
+        SensorDataFilter(request.copy(sort = Sort(SensorData.Time, SortDirection.Desc)), None, Some(s.serialNumber)),
 
       (s: Sensor, request: PageRequest) =>
-        SensorDataFilter(request.copy(sort = Sort(SensorField.SerialNumber, SortDirection.Desc)),
+        SensorDataFilter(request.copy(sort = Sort(Sensor.SerialNumber, SortDirection.Desc)),
           Some(s.id), Some(s.serialNumber))
     )
 

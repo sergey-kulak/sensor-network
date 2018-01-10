@@ -4,10 +4,10 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 import com.ita.sensornetwork.sensor.MeasurableParameter
+import enumeratum._
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, JsonFormat, deserializationError}
 
 import scala.util.Try
-
 
 trait JsonProtocol extends DefaultJsonProtocol {
 
@@ -26,28 +26,28 @@ trait JsonProtocol extends DefaultJsonProtocol {
     }
   }
 
-  implicit object MeasurableParameterFormat extends JsonFormat[MeasurableParameter] {
+  implicit object MeasurableParameterFormat extends EnumJsonFormat[MeasurableParameter] {
 
-    def write(mp: MeasurableParameter) = JsString(mp.code)
-
-    def read(json: JsValue) = json match {
-      case JsString(code) =>
-        MeasurableParameter.foundByCode(code)
-          .fold(deserializationError(s"Expected ISO Date format, got $code"))(identity)
-      case error => deserializationError(s"Expected JsString, got $error")
-    }
+    def parseFromCode(code: String): Option[MeasurableParameter] = MeasurableParameter.withNameInsensitiveOption(code)
   }
 
-  implicit object SortDirectionFormat extends JsonFormat[SortDirection] {
+  implicit object SortDirectionFormat extends EnumJsonFormat[SortDirection] {
 
-    def write(sd: SortDirection) = JsString(sd.code)
+    def parseFromCode(code: String): Option[SortDirection] = SortDirection.withNameInsensitiveOption(code)
+  }
+
+  trait EnumJsonFormat[E <: EnumEntry] extends JsonFormat[E] {
+
+    def write(sd: E) = JsString(sd.entryName)
 
     def read(json: JsValue) = json match {
       case JsString(code) =>
-        SortDirection.foundByCode(code)
+        parseFromCode(code)
           .fold(deserializationError(s"Expected ISO Date format, got $code"))(identity)
       case error => deserializationError(s"Expected JsString, got $error")
     }
+
+    def parseFromCode(code: String): Option[E]
   }
 
 }

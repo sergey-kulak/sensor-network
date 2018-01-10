@@ -13,6 +13,9 @@ import com.ita.sensornetwork.sensor.dao.SensorDaoComponent
 trait SensorRestApiComponent extends SprayJsonSupport with JsonProtocol {
   this: SensorDaoComponent =>
 
+  val DefaultPageNumber = 0
+  val DefaultPageLength = 20
+
   implicit val sensorFormat = jsonFormat4(Sensor)
   implicit val registerSensorFormat = jsonFormat3(RegisterSensor)
   implicit val createDataFormat = jsonFormat3(CreateSensorData)
@@ -32,10 +35,10 @@ trait SensorRestApiComponent extends SprayJsonSupport with JsonProtocol {
           path("data") {
             pathEndOrSingleSlash {
               get {
-                parameters("pageNumber".as[Int] ? 0, "length".as[Int] ? 20, "sortField".?, "direction".?) {
+                parameters("pageNumber".as[Int] ? DefaultPageNumber, "length".as[Int] ? DefaultPageLength, "sortField".?, "direction".?) {
                   (pageNumber, length, sortFieldOpt, directionOpt) =>
-                    val sortDirection = directionOpt.flatMap(SortDirection.foundByCode).getOrElse(SortDirection.Asc)
-                    val sortField = sortFieldOpt.getOrElse(PageRequestField.DefaultSortField)
+                    val sortDirection = directionOpt.flatMap(SortDirection.withNameInsensitiveOption).getOrElse(SortDirection.Asc)
+                    val sortField = sortFieldOpt.getOrElse(PageRequest.DefaultSortField)
                     val pageRequest = PageRequest(pageNumber, length, Sort(sortField, sortDirection))
 
                     val filter = SensorDataFilter(pageRequest, sensorId = Some(id))

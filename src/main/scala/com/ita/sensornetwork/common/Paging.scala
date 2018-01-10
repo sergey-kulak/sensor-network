@@ -1,29 +1,29 @@
 package com.ita.sensornetwork.common
 
+import enumeratum._
+
 case class PageRequest(pageNumber: Int,
                        length: Int,
-                       sort: Sort = Sort(PageRequestField.DefaultSortField, SortDirection.Asc)) {
+                       sort: Sort = Sort(PageRequest.DefaultSortField, SortDirection.Asc)) {
   def startIndex: Int = pageNumber * length
 
   def pageCount(totalCount: Int): Int = (totalCount.toFloat / length).ceil.toInt
 }
 
-object PageRequestField {
+object PageRequest extends ((Int, Int, Sort) => PageRequest) {
   val IdField = "id"
   val DefaultSortField = IdField
 }
 
-sealed abstract class SortDirection(val code: String)
+sealed abstract class SortDirection(override val entryName: String) extends EnumEntry
 
-object SortDirection {
+object SortDirection extends Enum[SortDirection] {
 
   case object Asc extends SortDirection("asc")
 
   case object Desc extends SortDirection("desc")
 
-  def values = Array(Asc, Desc)
-
-  def foundByCode(code: String): Option[SortDirection] = values.find(_.code == code)
+  override def values = findValues
 }
 
 case class Sort(field: String, sortDirection: SortDirection)

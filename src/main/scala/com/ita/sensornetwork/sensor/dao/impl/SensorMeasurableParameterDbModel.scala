@@ -12,11 +12,11 @@ trait SensorMeasurableParameterDbModel {
   val sensorMeasurableParameters = TableQuery[SensorMeasurableParameterTable]
 
   implicit def measurableParameterToString = MappedColumnType.base[MeasurableParameter, String](
-    mp => mp.code,
-    cd => MeasurableParameter.foundByCode(cd).get
+    mp => mp.entryName,
+    cd => MeasurableParameter.withName(cd)
   )
 
-  implicit val GetMeasurableParameter = GetResult(r => MeasurableParameter.foundByCode(r.nextString).get)
+  implicit val GetMeasurableParameter = GetResult(r => MeasurableParameter.withName(r.nextString))
 
   final class SensorMeasurableParameterTable(tag: Tag) extends Table[(Long, MeasurableParameter)](tag, "sensor_measurable_parameter") {
     def sensorId = column[Long]("sensor_id")

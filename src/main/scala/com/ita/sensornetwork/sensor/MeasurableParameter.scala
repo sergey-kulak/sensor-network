@@ -1,8 +1,10 @@
 package com.ita.sensornetwork.sensor
 
-sealed abstract class MeasurableParameter(val code: String)
+import enumeratum.{EnumEntry, Enum}
 
-object MeasurableParameter {
+sealed abstract class MeasurableParameter(override val entryName: String) extends EnumEntry
+
+object MeasurableParameter extends Enum[MeasurableParameter]{
 
   case object Location extends MeasurableParameter("LOC")
 
@@ -12,7 +14,5 @@ object MeasurableParameter {
 
   case object NoiseLevel extends MeasurableParameter("NS")
 
-  def values = Array(Location, Temperature, Humidity, NoiseLevel)
-
-  def foundByCode(code: String): Option[MeasurableParameter] = values.find(_.code == code)
+  def values = findValues
 }

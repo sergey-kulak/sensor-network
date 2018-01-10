@@ -31,7 +31,7 @@ trait SensorDaoImplComponent extends SensorDaoComponent {
     }
 
     def register(registerSensor: RegisterSensor): Future[Sensor] = {
-      db.run(registerAction(registerSensor))
+      db.run(registerAction(registerSensor).withPinnedSession)
     }
 
     def registerAction(registerSensor: RegisterSensor): DBIO[Sensor] = {
@@ -96,7 +96,7 @@ trait SensorDaoImplComponent extends SensorDaoComponent {
     }
 
     private def toFullSensorData(items: Seq[(SensorData, Sensor)]): Seq[FullSensorData] = {
-      items.map { case (sd, s) => FullSensorDataUtils.of(sd, s) }
+      items.map { case (sd, s) => FullSensorData.of(sd, s) }
     }
 
     private def buildFilter(sd: SensorDataTable, s: SensorTable, filter: SensorDataFilter): Rep[Boolean] = {
@@ -107,9 +107,9 @@ trait SensorDaoImplComponent extends SensorDaoComponent {
 
     private def buildSort(sd: SensorDataTable, s: SensorTable, sort: Sort): ColumnOrdered[_] = {
       buildSort(sort, {
-        case PageRequestField.IdField => sd.id
-        case SensorField.SerialNumber => s.serialNumber
-        case SensorDataField.Time => sd.time
+        case PageRequest.IdField => sd.id
+        case Sensor.SerialNumber => s.serialNumber
+        case SensorData.Time => sd.time
       })
     }
 

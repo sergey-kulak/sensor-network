@@ -81,7 +81,7 @@ class SensorRestApiComponentSpec extends WordSpecLike with Matchers
 
       val pageNumber = 1
       val length = 10
-      val sortField = SensorDataField.Time
+      val sortField = SensorData.Time
       val direction = SortDirection.Desc
       val pageRequest = PageRequest(pageNumber, length, Sort(sortField, direction))
 
@@ -91,7 +91,7 @@ class SensorRestApiComponentSpec extends WordSpecLike with Matchers
       (sensorDao.findSensorData _).expects(expectedFilter).returning(Future(page))
 
       Get(s"/sensors/${sensor.id}/data?pageNumber=${pageNumber}&length=${length}" +
-        s"&sortField=${sortField}&direction=${direction.code}").withHeaders(Auth) ~> routes ~> check {
+        s"&sortField=${sortField}&direction=${direction}").withHeaders(Auth) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         responseAs[Page[FullSensorData]] shouldEqual page
       }
@@ -100,9 +100,9 @@ class SensorRestApiComponentSpec extends WordSpecLike with Matchers
     "returns sensor data with default paging" in {
       val sensorId = 1
 
-      val pageNumber = 0
-      val length = 20
-      val sortField = PageRequestField.DefaultSortField
+      val pageNumber = DefaultPageNumber
+      val length = DefaultPageLength
+      val sortField = PageRequest.DefaultSortField
       val direction = SortDirection.Asc
       val pageRequest = PageRequest(pageNumber, length, Sort(sortField, direction))
 

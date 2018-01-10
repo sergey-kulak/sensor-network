@@ -10,7 +10,7 @@ case class SensorData(sensorId: Long,
                       time: LocalDateTime = LocalDateTime.now(),
                       id: Long = 0L) extends Entity[Long]
 
-object SensorDataField {
+object SensorData extends ((Long, MeasurableParameter, Double, LocalDateTime, Long) => SensorData) {
   val Time = "time"
 }
 
@@ -29,7 +29,7 @@ case class FullSensorData(sensor: Sensor,
                           time: LocalDateTime,
                           id: Long)
 
-object FullSensorDataUtils {
+object FullSensorData extends ((Sensor, MeasurableParameter, Double, LocalDateTime, Long) => FullSensorData) {
   def of(sd: SensorData, sensor: Sensor) = FullSensorData(sensor = sensor,
     measurableParameter = sd.measurableParameter, value = sd.value,
     time = sd.time, id = sd.id

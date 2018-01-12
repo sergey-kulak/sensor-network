@@ -4,8 +4,11 @@ import java.time.{LocalDate, LocalDateTime, LocalTime}
 
 import com.ita.sensornetwork.TestEntityKit
 import com.ita.sensornetwork.common._
+import com.ita.sensornetwork.sensor.MeasurableParameter.NoiseLevel
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Matchers, WordSpecLike}
+
+import scala.util.Random
 
 class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers with TableDrivenPropertyChecks {
 
@@ -57,16 +60,21 @@ class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers wi
       }
     }
 
-    "save sensor data" in withRollback {
-      registerSensor().flatMap { sensor =>
-        val expectedValue: Double = 10.5
-        val expectedParam = sensor.measurableParameters.head
-        val sensorData = CreateSensorData(expectedParam, expectedValue)
-        sensorDao.saveSensorDataAction(sensor.id, sensorData).map { sensorData =>
-          assert(sensorData.id != 0L)
-          assert(sensorData.sensorId === sensor.id)
-          assert(sensorData.measurableParameter === expectedParam)
-          sensorData.value should equal(expectedValue)
+    val measures = Seq(
+      Measure(NoiseLevel, 1),
+      Measure(MeasurableParameter.CellId, "TestCid"),
+      Measure(MeasurableParameter.Location, GeoLocation(1, 2))
+    )
+
+    measures.foreach { measure =>
+      s"save sensor data with measure ${measure.parameter}" in withRollback {
+        registerSensor().flatMap { sensor =>
+          val sensorData = CreateSensorData(measure)
+          sensorDao.saveSensorDataAction(sensor.id, sensorData).map { sensorData =>
+            assert(sensorData.id != 0L)
+            assert(sensorData.sensorId === sensor.id)
+            assert(sensorData.measure === measure)
+          }
         }
       }
     }
@@ -76,10 +84,10 @@ class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers wi
         SensorDataFilter(request.copy(sort = Sort(PageRequest.IdField, SortDirection.Desc))),
 
       (s: Sensor, request: PageRequest) =>
-        SensorDataFilter(request.copy(sort = Sort(SensorData.Time, SortDirection.Desc)), None, Some(s.serialNumber)),
+        SensorDataFilter(request.copy(sort = Sort(SensorDataField.Time, SortDirection.Desc)), None, Some(s.serialNumber)),
 
       (s: Sensor, request: PageRequest) =>
-        SensorDataFilter(request.copy(sort = Sort(Sensor.SerialNumber, SortDirection.Desc)),
+        SensorDataFilter(request.copy(sort = Sort(SensorField.SerialNumber, SortDirection.Desc)),
           Some(s.id), Some(s.serialNumber))
     )
 
@@ -130,16 +138,18 @@ class SensorDaoImplSpec extends TestEntityKit with WordSpecLike with Matchers wi
     "findSensorMaxStatistics should find sensor data with max" in withRollback {
       val filter = SensorMaxStatisticsFilter(Some(LocalDate.now().atStartOfDay()),
         Some(LocalDate.now().atTime(LocalTime.MAX)))
+      val measurableParameter = MeasurableParameter.NoiseLevel
+      val value = Random.nextDouble()
       for {
-        noDataSensor <- registerSensor()
+        noDataSensor <- registerSensor(Set(measurableParameter))
 
         wrongDateSensor <- registerSensor()
         _ <- addSensorData(wrongDateSensor, time = LocalDateTime.now().minusMonths(1))
         _ <- addSensorData(wrongDateSensor, time = LocalDateTime.now().plusMonths(1))
 
         sensor <- registerSensor()
-        sensorData <- addSensorData(sensor)
-        biggerSensorData <- addSensorData(sensor, sensorData.value + 1)
+        sensorData <- addSensorData(sensor, value)
+        biggerSensorData <- addSensorData(sensor, value + 1)
 
         stat <- sensorDao.findSensorMaxStatisticsAction(filter)
       } yield {

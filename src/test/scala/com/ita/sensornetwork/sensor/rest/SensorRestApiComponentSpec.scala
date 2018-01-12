@@ -7,6 +7,7 @@ import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, Lo
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.ita.sensornetwork.common._
+import com.ita.sensornetwork.sensor.MeasurableParameter._
 import com.ita.sensornetwork.sensor._
 import com.ita.sensornetwork.sensor.dao.SensorDaoComponent
 import org.scalamock.scalatest.MockFactory
@@ -81,12 +82,12 @@ class SensorRestApiComponentSpec extends WordSpecLike with Matchers
 
       val pageNumber = 1
       val length = 10
-      val sortField = SensorData.Time
+      val sortField = SensorDataField.Time
       val direction = SortDirection.Desc
       val pageRequest = PageRequest(pageNumber, length, Sort(sortField, direction))
 
       val expectedFilter = SensorDataFilter(pageRequest, sensorId = Some(sensor.id))
-      val sensorData = Seq(FullSensorData(sensor, MeasurableParameter.NoiseLevel, 1, LocalDateTime.now(), 1))
+      val sensorData = Seq(FullSensorData(sensor, Measure(MeasurableParameter.NoiseLevel, 1), LocalDateTime.now(), 1))
       val page = Page(sensorData, 0, 1, 1)
       (sensorDao.findSensorData _).expects(expectedFilter).returning(Future(page))
 
@@ -117,25 +118,32 @@ class SensorRestApiComponentSpec extends WordSpecLike with Matchers
       }
     }
 
-    "record sensor data" in {
-      val sensorId = 1
-      val createSensorData = CreateSensorData(MeasurableParameter.NoiseLevel, 1)
-      val sensorData = SensorData(sensorId, MeasurableParameter.NoiseLevel, 1)
-      (sensorDao.saveSensorData _).expects(sensorId, *).returning(Future(sensorData))
+    val measures = Seq(
+      Measure(NoiseLevel, 1),
+      Measure(MeasurableParameter.CellId, "TestCid"),
+      Measure(MeasurableParameter.Location, GeoLocation(1, 2))
+    )
 
-      Post(s"/sensors/${sensorId}/data", createSensorData).withHeaders(Auth) ~> routes ~> check {
-        status shouldEqual StatusCodes.Created
+    measures.foreach { measure =>
+      s"record sensor data with measure ${measure.parameter}" in {
+        val sensorId = 1
+        val createSensorData = CreateSensorData(measure)
+        val sensorData = SensorData(sensorId, measure)
+        (sensorDao.saveSensorData _).expects(sensorId, *).returning(Future(sensorData))
+
+        Post(s"/sensors/${sensorId}/data", createSensorData).withHeaders(Auth) ~> routes ~> check {
+          status shouldEqual StatusCodes.Created
+        }
       }
     }
 
     "reject record sensor data with negative humidity" in {
-      case class TestCreateSensorData(measurableParameter: MeasurableParameter,
-                                      value: Double,
+      case class TestCreateSensorData(measure: Measure[_],
                                       time: LocalDateTime = LocalDateTime.now())
-      implicit val testCreateSensorDataFormat = jsonFormat3(TestCreateSensorData)
+      implicit val testCreateSensorDataFormat = jsonFormat2(TestCreateSensorData)
 
       val sensorId = 1
-      val createSensorData = TestCreateSensorData(MeasurableParameter.Humidity, -1)
+      val createSensorData = TestCreateSensorData(Measure(MeasurableParameter.Humidity, -1))
 
       Post(s"/sensors/${sensorId}/data", createSensorData).withHeaders(Auth) ~> routes ~> check {
         status shouldEqual StatusCodes.BadRequest

@@ -10,20 +10,11 @@ import com.ita.sensornetwork.common._
 import com.ita.sensornetwork.sensor._
 import com.ita.sensornetwork.sensor.dao.SensorDaoComponent
 
-trait SensorRestApiComponent extends SprayJsonSupport with JsonProtocol {
+trait SensorRestApiComponent extends SprayJsonSupport with SensorRestApiJsonProtocol {
   this: SensorDaoComponent =>
 
   val DefaultPageNumber = 0
   val DefaultPageLength = 20
-
-  implicit val sensorFormat = jsonFormat4(Sensor)
-  implicit val registerSensorFormat = jsonFormat3(RegisterSensor)
-  implicit val createDataFormat = jsonFormat3(CreateSensorData)
-  implicit val sensorDataFormat = jsonFormat5(SensorData)
-  implicit val fullSensorDataFormat = jsonFormat5(FullSensorData)
-  implicit val pageFormat = jsonFormat4(Page[FullSensorData])
-  implicit val sortFormat = jsonFormat2(Sort)
-  implicit val pageRequestFormat = jsonFormat3(PageRequest)
 
   def sensorRestApi: SensorRestApi = new SensorRestApi {}
 
@@ -45,7 +36,7 @@ trait SensorRestApiComponent extends SprayJsonSupport with JsonProtocol {
                     onSuccess(sensorDao.findSensorData(filter))(complete(_))
                 }
               } ~ post {
-                entity(as[CreateSensorData]) { sData =>
+                entity(as[CreateSensorData]) { sData: CreateSensorData =>
                   onSuccess(sensorDao.saveSensorData(id, sData)) { _ =>
                     complete(StatusCodes.Created)
                   }

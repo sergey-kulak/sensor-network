@@ -3,38 +3,33 @@ package com.ita.sensornetwork.sensor
 import java.time.LocalDateTime
 
 import com.ita.sensornetwork.common.{Entity, PageRequest}
+import com.ita.sensornetwork.sensor.MeasurableParameter.Humidity
 
 case class SensorData(sensorId: Long,
-                      measurableParameter: MeasurableParameter,
-                      value: Double,
+                      measure: Measure[_],
                       time: LocalDateTime = LocalDateTime.now(),
                       id: Long = 0L) extends Entity[Long]
 
-object SensorData extends ((Long, MeasurableParameter, Double, LocalDateTime, Long) => SensorData) {
+object SensorDataField {
   val Time = "time"
 }
 
-case class CreateSensorData(measurableParameter: MeasurableParameter,
-                            value: Double,
+case class CreateSensorData(measure: Measure[_],
                             time: LocalDateTime = LocalDateTime.now()) {
-  measurableParameter match {
-    case MeasurableParameter.Humidity => require(value >= 0, "Humidity can't be negative")
+  measure match {
+    case Measure(Humidity, value: Double) => require(value >= 0, "Humidity can't be negative")
     case _ =>
   }
 }
 
+case class RawSensorData(measureParameter: MeasurableParameter,
+                         value: String,
+                         time: LocalDateTime = LocalDateTime.now())
+
 case class FullSensorData(sensor: Sensor,
-                          measurableParameter: MeasurableParameter,
-                          value: Double,
+                          measure: Measure[_],
                           time: LocalDateTime,
                           id: Long)
-
-object FullSensorData extends ((Sensor, MeasurableParameter, Double, LocalDateTime, Long) => FullSensorData) {
-  def of(sd: SensorData, sensor: Sensor) = FullSensorData(sensor = sensor,
-    measurableParameter = sd.measurableParameter, value = sd.value,
-    time = sd.time, id = sd.id
-  )
-}
 
 case class SensorDataFilter(pageRequest: PageRequest,
                             sensorId: Option[Long] = None,

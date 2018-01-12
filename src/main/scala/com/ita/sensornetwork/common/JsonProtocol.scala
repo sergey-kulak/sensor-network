@@ -3,7 +3,6 @@ package com.ita.sensornetwork.common
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-import com.ita.sensornetwork.sensor.MeasurableParameter
 import enumeratum._
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, JsonFormat, deserializationError}
 
@@ -26,10 +25,6 @@ trait JsonProtocol extends DefaultJsonProtocol {
     }
   }
 
-  implicit object MeasurableParameterFormat extends EnumJsonFormat[MeasurableParameter] {
-
-    def parseFromCode(code: String): Option[MeasurableParameter] = MeasurableParameter.withNameInsensitiveOption(code)
-  }
 
   implicit object SortDirectionFormat extends EnumJsonFormat[SortDirection] {
 
@@ -38,12 +33,12 @@ trait JsonProtocol extends DefaultJsonProtocol {
 
   trait EnumJsonFormat[E <: EnumEntry] extends JsonFormat[E] {
 
-    def write(sd: E) = JsString(sd.entryName)
+    def write(sd: E): JsValue = JsString(sd.entryName)
 
-    def read(json: JsValue) = json match {
+    def read(json: JsValue): E = json match {
       case JsString(code) =>
         parseFromCode(code)
-          .fold(deserializationError(s"Expected ISO Date format, got $code"))(identity)
+          .fold(deserializationError(s"Expected current enum value, but got $code"))(identity)
       case error => deserializationError(s"Expected JsString, got $error")
     }
 

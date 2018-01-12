@@ -69,8 +69,13 @@ trait SensorDaoImplComponent extends SensorDaoComponent {
     }
 
     def saveSensorDataAction(sensorId: Long, sensorData: CreateSensorData): DBIO[SensorData] = {
-      insertSensorDataQuery += SensorData(sensorId, sensorData.measurableParameter,
-        sensorData.value, sensorData.time)
+      var row = SensorDataRow(sensorId = sensorId, measurableParameter = sensorData.measure.parameter, time = sensorData.time)
+      row = sensorData.measure match {
+        case Measure(_: GeoLocationMeasurableParameter, value: GeoLocation) => row.copy(geoLat = Some(value.lat), geoLong = Some(value.long))
+        case Measure(_: StringMeasurableParameter, value: String) => row.copy(strValue = Some(value))
+        case Measure(_: DoubleMeasurableParameter, value: Double) => row.copy(numValue = Some(value))
+      }
+      (insertSensorDataQuery += row).map(toSensorData)
     }
 
     def findSensorData(filter: SensorDataFilter): Future[Page[FullSensorData]] = {
@@ -95,8 +100,8 @@ trait SensorDaoImplComponent extends SensorDaoComponent {
       }
     }
 
-    private def toFullSensorData(items: Seq[(SensorData, Sensor)]): Seq[FullSensorData] = {
-      items.map { case (sd, s) => FullSensorData.of(sd, s) }
+    private def toFullSensorData(items: Seq[(SensorDataRow, Sensor)]): Seq[FullSensorData] = {
+      items.map { case (sd, s) => FullSensorData(s, toMeasure(sd), sd.time, sd.id) }
     }
 
     private def buildFilter(sd: SensorDataTable, s: SensorTable, filter: SensorDataFilter): Rep[Boolean] = {
@@ -108,8 +113,8 @@ trait SensorDaoImplComponent extends SensorDaoComponent {
     private def buildSort(sd: SensorDataTable, s: SensorTable, sort: Sort): ColumnOrdered[_] = {
       buildSort(sort, {
         case PageRequest.IdField => sd.id
-        case Sensor.SerialNumber => s.serialNumber
-        case SensorData.Time => sd.time
+        case SensorField.SerialNumber => s.serialNumber
+        case SensorDataField.Time => sd.time
       })
     }
 
@@ -121,18 +126,21 @@ trait SensorDaoImplComponent extends SensorDaoComponent {
       val maxData = sensorDataItems
         .filter(buildFilter(_, filter))
         .groupBy(sd => (sd.sensorId, sd.measurableParameter))
-        .map { case ((sId, mp), items) => (sId, mp) -> items.map(_.value).max }
+        .map { case ((sId, mp), items) => (sId, mp) -> items.map(_.numValue).max }
 
       sensorDataItems.join(maxData)
         .on { case (sd, (mdId, mdValue)) => sd.sensorId === mdId._1 && sd.measurableParameter === mdId._2 &&
-          sd.value === mdValue
+          sd.numValue === mdValue
         }
         .joinRight(sensors).on { case ((sd, _), s) => sd.sensorId === s.id }
-        .map { case (md, s) => (s, md.map(_._1)) }.result
+        .map { case (md, s) => (s, md.map(_._1)) }.result.map { st =>
+        st.map { case (s, sdrOpt) => (s, sdrOpt.map(toSensorData)) }
+      }
     }
 
     private def buildFilter(sd: SensorDataTable, filter: SensorMaxStatisticsFilter): Rep[Boolean] = {
       joinAnd(
+        Some(sd.measurableParameter.isInstanceOf[DoubleMeasurableParameter]),
         filter.from.map(sd.time >= _),
         filter.to.map(sd.time <= _))
     }

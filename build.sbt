@@ -41,4 +41,6 @@ libraryDependencies ++= {
   )
 }
 
+
+
 mainClass in Compile := Some("com.ita.sensornetwork.ServerMain")
